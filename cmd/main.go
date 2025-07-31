@@ -12,6 +12,7 @@ var args struct {
 	ListenAddr string            `short:"l" long:"listen" default:":9999"`
 	Codec      string            `short:"c" long:"codec" default:"libx265"`
 	Options    map[string]string `short:"o" long:"options"`
+	MaxProc    int               `short:"p" long:"max-proc"`
 }
 
 func main() {
@@ -28,6 +29,7 @@ func main() {
 			Exec:    args.FFMpeg,
 			Codec:   args.Codec,
 			Options: args.Options,
+			MaxProc: args.MaxProc,
 		},
 	}
 
