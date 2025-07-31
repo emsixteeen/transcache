@@ -37,26 +37,10 @@ func Test_handleConvert(t *testing.T) {
 	t.Log(u)
 	t.Log(res.Status)
 
-	buf := make([]byte, 512*1024)
-	count := 0
-
-	for {
-		n, err := res.Body.Read(buf)
-		count += n
-		t.Log("read", n, "bytes")
-
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			t.Fatal(err)
-		}
+	w, err := io.Copy(io.Discard, res.Body)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	if res.StatusCode != http.StatusOK {
-		t.Log(string(buf))
-	}
-
-	t.Log(count)
+	t.Log("converted:", w, "bytes")
 }
