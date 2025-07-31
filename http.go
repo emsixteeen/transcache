@@ -1,18 +1,26 @@
 package transcache
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 )
+
+type Cacher interface {
+	Get(string) io.Reader
+	Set(string) io.Writer
+}
 
 type Server struct {
 	Addr      string
 	Converter Converter
+	Cache     Cacher
 
 	mux *http.ServeMux
 }
 
-func handleConvert(c Converter) func(w http.ResponseWriter, r *http.Request) {
+func handleConvert(s *Server) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		src := r.PathValue("src")
 		if src == "" {
@@ -31,7 +39,26 @@ func handleConvert(c Converter) func(w http.ResponseWriter, r *http.Request) {
 
 		// TODO: maybe validate content-type, etc.
 		// TODO: we can't really write an error after we start writing already ...
-		if err = c.ConvertCtx(r.Context(), res.Body, w); err != nil {
+		wr := io.Writer(w)
+		if s.Cache != nil {
+			cr := s.Cache.Get(src)
+			if cr != nil {
+				fmt.Println("cache hit for:", src)
+
+				_, err = io.Copy(w, cr)
+				if err != nil {
+					// TODO: Handle
+				}
+				return
+			}
+
+			cw := s.Cache.Set(src)
+			if cw != nil {
+				wr = io.MultiWriter(w, cw)
+			}
+		}
+
+		if err = s.Converter.ConvertCtx(r.Context(), res.Body, wr); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = fmt.Fprintf(w, "convert error: %s", err)
 			return
@@ -52,7 +79,13 @@ func (s *Server) Configure() error {
 		return fmt.Errorf("missing converter")
 	}
 
-	s.mux.Handle("/convert/{src}", http.HandlerFunc(handleConvert(s.Converter)))
+	if s.Cache == nil {
+		s.Cache = &MemoryCache{
+			data: map[string]*bytes.Buffer{},
+		}
+	}
+
+	s.mux.Handle("/convert/{src}", http.HandlerFunc(handleConvert(s)))
 	return nil
 }
 
