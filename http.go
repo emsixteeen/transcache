@@ -2,6 +2,7 @@ package transcache
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,10 +13,15 @@ type Cacher interface {
 	Set(string) io.Writer
 }
 
+type CacherCtx interface {
+	Cacher
+	SetCtx(context.Context, string) io.WriteCloser
+}
+
 type Server struct {
 	Addr      string
 	Converter Converter
-	Cache     Cacher
+	Cache     CacherCtx
 
 	mux *http.ServeMux
 }
@@ -52,10 +58,11 @@ func handleConvert(s *Server) func(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			cw := s.Cache.Set(src)
+			cw := s.Cache.SetCtx(r.Context(), src)
 			if cw != nil {
 				wr = io.MultiWriter(w, cw)
 			}
+			defer cw.Close()
 		}
 
 		if err = s.Converter.ConvertCtx(r.Context(), res.Body, wr); err != nil {
