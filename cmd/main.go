@@ -8,8 +8,10 @@ import (
 )
 
 var args struct {
-	FFMpeg     string `short:"m" long:"ffmpeg" default:"ffmpeg"`
-	ListenAddr string `short:"l" long:"listen" default:":9999" required:"true"`
+	FFMpeg     string            `short:"m" long:"ffmpeg" default:"ffmpeg"`
+	ListenAddr string            `short:"l" long:"listen" default:":9999"`
+	Codec      string            `short:"c" long:"codec" default:"libx265"`
+	Options    map[string]string `short:"o" long:"options"`
 }
 
 func main() {
@@ -23,7 +25,9 @@ func main() {
 	srvr := transcache.Server{
 		Addr: args.ListenAddr,
 		Converter: transcache.Converter{
-			Exec: args.FFMpeg,
+			Exec:    args.FFMpeg,
+			Codec:   args.Codec,
+			Options: args.Options,
 		},
 	}
 

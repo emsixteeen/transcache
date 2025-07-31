@@ -31,7 +31,7 @@ func handleConvert(c Converter) func(w http.ResponseWriter, r *http.Request) {
 
 		// TODO: maybe validate content-type, etc.
 		// TODO: we can't really write an error after we start writing already ...
-		if err = c.Convert(res.Body, w); err != nil {
+		if err = c.ConvertCtx(r.Context(), res.Body, w); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = fmt.Fprintf(w, "convert error: %s", err)
 			return
